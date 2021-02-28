@@ -1,0 +1,5 @@
+tkinter
+collections
+pathlib
+pyscreenshot
+ctypes

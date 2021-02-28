@@ -2,13 +2,21 @@ from tkinter import *
 from tkinter.colorchooser import askcolor
 from tkinter.filedialog import asksaveasfilename
 from collections import deque
-
+import pathlib
+import pyscreenshot as ImageGrab
+import ctypes
 
 class Paint(object):
 
     DEFAULT_PEN_SIZE = 5.0
     DEFAULT_COLOR = 'black'
-
+    
+    # Windows fix pre high-DPI obrazovky
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2) # windows version >= 8.1
+    except:
+        ctypes.windll.user32.SetProcessDPIAware() # win 8.0 or less 
+    
     def __init__(self):
         self.root = Tk()
         self.root.title("Tkinter Paint")
@@ -128,9 +136,24 @@ class Paint(object):
         pass
     
     def save_as(self):
-        file_name = asksaveasfilename(defaultextension = ".ps")
-        self.c.postscript(file=file_name, colormode='color')
-        print(file_name)
+        project_path = pathlib.Path(__file__).parent.absolute()
+        file_name = asksaveasfilename(
+            initialdir = project_path,
+            defaultextension = ".ps", 
+            filetypes=(("PostScript File", "*.ps"), 
+                        ("PNG File", "*.png"))
+        )
+        if file_name.endswith(".ps"):
+            self.c.postscript(file = file_name, colormode = 'color')
+        elif file_name.endswith(".png"):
+            x2 = self.root.winfo_rootx() + self.c.winfo_x()
+            y2 = self.root.winfo_rooty() + self.c.winfo_y()
+            x1 = x2 + self.c.winfo_width()
+            y1 = y2 + self.c.winfo_height()
+            ImageGrab.grab().crop((x2,y2,x1,y1)).save(file_name)
+        else:
+            print("No file specified.")
+
 
 if __name__ == '__main__':
     Paint()
