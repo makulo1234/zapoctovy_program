@@ -1,0 +1,4 @@
+.vscode/settings.json
+exports
+__pycache__
+img_temp.ppm
