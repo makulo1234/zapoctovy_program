@@ -1,8 +1,10 @@
 from ctypes import windll
 
-# Windows fix pre high-DPI obrazovky
 def win_dpi_fix():
+    """
+    Windows fix for high-DPI displays
+    """
     try:
-        windll.shcore.SetProcessDpiAwareness(2) # windows version >= 8.1
+        windll.shcore.SetProcessDpiAwareness(2) # Win version >= 8.1
     except:
-        windll.user32.SetProcessDPIAware() # win 8.0 or less 
+        windll.user32.SetProcessDPIAware() # Win 8.0 or less 

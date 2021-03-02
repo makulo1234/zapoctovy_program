@@ -4,3 +4,4 @@ pathlib
 Pillow
 pyscreenshot
 ctypes
+platform

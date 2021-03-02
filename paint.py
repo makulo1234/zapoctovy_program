@@ -10,32 +10,46 @@ import pyscreenshot as ImageGrab
 class Paint(object):
     """
     Paint App driven by Tkinter for drawing lines, circles, points with basic settings adjustments.
-
+    
     Attributes
     ----------
-    canvas_width : int
+    default_canvas_width : int
         the width of the drawing area (600 by default)
-    canvas_height : int
+    default_canvas_height : int
         the width of the drawing area (600 by default)
+    default_color : string
+        the default color used at the start of the application ("black" by default)
+    default_pen_size : int
+        the default pen (tool outline) size used at the start of the application (5 by default)
     """
 
+    # Default values for Paint app that can be changed
     DEFAULT_PEN_SIZE = 5
     DEFAULT_COLOR = 'black'
     DEFAULT_CANVAS_WIDTH = 600
     DEFAULT_CANVAS_HEIGHT = 600
     
-    def __init__(self, canvas_width = DEFAULT_CANVAS_WIDTH, canvas_height = DEFAULT_CANVAS_HEIGHT):
+    def __init__(self, default_canvas_width=DEFAULT_CANVAS_WIDTH, default_canvas_height=DEFAULT_CANVAS_HEIGHT, 
+                 default_color=DEFAULT_COLOR, default_pen_size=DEFAULT_PEN_SIZE):
+        
+        self.default_canvas_width = default_canvas_width
+        self.default_canvas_height = default_canvas_height
+        self.default_color = default_color
+        self.default_pen_size = default_pen_size
+        
         self.root = Tk()
         
-        # Menu v Tk okne
+        # Top GUI menubar that consists of menu1, menu2 and menu3
         self.menubar = Menu(self.root)
         self.menu1 = Menu(self.menubar, tearoff=0)
+        self.menu1.add_command(label="New file", command=self.new_file)
         self.menu1.add_command(label="Save (Ctrl+S)", command=self.save)
         self.menu1.add_command(label="Save as... (Ctrl+A)", command=self.save_as)
         self.menubar.add_cascade(label="File", menu=self.menu1)
         
         self.menu2 = Menu(self.menubar, tearoff=0)
         self.menu2.add_command(label="Undo (Ctrl+Z)", command=self.undo)
+        self.menu2.add_command(label="Redo (Ctrl+Y)", command=self.redo)
         self.menubar.add_cascade(label="Edit", menu=self.menu2)
         
         self.menu3 = Menu(self.menubar, tearoff=0)
@@ -44,7 +58,7 @@ class Paint(object):
         
         self.root.config(menu=self.menubar)
 
-        # 1. riadok buttonov v Tk gride
+        # 1. row in Tk grid layout
         self.eraser_button = Button(self.root, text='Eraser', command=self.use_eraser)
         self.eraser_button.grid(row=0, column=0)
         
@@ -60,7 +74,7 @@ class Paint(object):
         self.choose_size_button = Scale(self.root, from_=1, to=10, orient=HORIZONTAL, label="Size")
         self.choose_size_button.grid(row=0, column=4)
         
-        # 2. riadok buttonov v Tk gride
+        # 2. row in Tk grid layout
         self.pen_button = Button(self.root, text='Pen', command=self.use_pen)
         self.pen_button.grid(row=1, column=0)
         
@@ -79,46 +93,58 @@ class Paint(object):
         self.point_button = Button(self.root, text='Point', command=self.use_point)
         self.point_button.grid(row=1,column=5)
 
-        
-        self.c = Canvas(self.root, bg='white', width=canvas_width, height=canvas_height)
+        # Canvas implementation with default dimensions
+        self.c = Canvas(self.root, bg='white', width=self.default_canvas_width, height=self.default_canvas_height)
         self.c.grid(row=2, columnspan=6)
 
+        # Tk GUI setup and mainloop to run the Tcl window in a loop
         self.setup()
         self.root.mainloop()
 
+    # Variable definitions used in the program and default settings 
     def setup(self):
+        # Window setup and project_path definition using pathlib library
         self.root.title("New file - Tkinter Paint")
         self.project_path = pathlib.Path(__file__).parent.absolute()
         
+        # Main variables and counters
         self.old_x = None
         self.old_y = None
-        self.size = self.DEFAULT_PEN_SIZE
-        self.choose_size_button.set(self.DEFAULT_PEN_SIZE)
-        self.paint_color = self.DEFAULT_COLOR
+        self.size = self.default_pen_size
+        self.choose_size_button.set(self.default_pen_size)
+        self.paint_color = self.default_color
         self.eraser_on = False
         self.active_button = self.pen_button
         self.use_pen()
+        # self.changes_index = 0
+        self.index = 0
+        self.img_counter = 0
+        self.file_dir = ""
         
+        # Stacks/lists used in tool functions
         self.Pen_objects = []
         self.Line_objects = []
         self.Circle_objects = []
         self.Rectangle_objects = []
         self.Polygon_objects = []
         self.Point_objects = []
-        self.stack = []
+        self.Image_objects = []
         self.polygon_points = []
         self.polygon_temp = []
-        self.file_dir = ""
+        # self.changes = []
+        self.stack = []
         
+        # Basic key/mouse binds
         self.c.bind('<Button-1>', self.start)
         self.c.bind('<B1-Motion>', self.motion)
         self.c.bind('<ButtonRelease-1>', self.end)
         self.c.bind("<Button-3>", self.mouse_right)
         self.root.bind("<Control-z>", self.undo)
+        self.root.bind("<Control-y>", self.redo)
         self.root.bind("<Control-s>", self.save)
         self.root.bind("<Control-a>", self.save_as)
 
-
+    # Function that sets tool settings triggered by button click
     def activate_button(self, some_button, eraser_mode=False):
         self.active_button.config(relief=RAISED)
         some_button.config(relief=SUNKEN)
@@ -126,16 +152,24 @@ class Paint(object):
         self.eraser_on = eraser_mode
         self.paint_color = self.outline_color = 'white' if self.eraser_on else self.paint_color
 
+    # Sets fill color option to white
     def use_eraser(self):
         self.activate_button(self.eraser_button, eraser_mode=True)
         self.current_color.config(bg="white")
+    
+    # Chooses fill color option to be used by tools
     def choose_color(self):
         self.eraser_on = False
         self.paint_color = self.outline_color = askcolor(color=self.paint_color)[1]
         self.current_color.config(bg=self.paint_color)
+
+    # Resets the canvas by drawing a white rectangle over it
     def clear(self):
-        self.c.delete("all")
+        x = self.c.create_rectangle(0, 0, self.default_canvas_width, self.default_canvas_height, fill="white", outline="white")
+        self.stack.append(x)
+        self.index = len(self.stack) - 1
     
+# Functions triggered by their respective buttons
     def use_pen(self):
         self.tool = "pen"
         self.activate_button(self.pen_button)
@@ -148,6 +182,7 @@ class Paint(object):
     def use_rectangle(self):
         self.tool = "rectangle"
         self.activate_button(self.rectangle_button)
+    # Function uses showinfo function to inform user how to use the tool
     def use_polygon(self):
         showinfo(title="Polygon tutorial", message="Left-click to create polygon points and then right-click to create polygon.")
         self.tool = "polygon"
@@ -156,7 +191,7 @@ class Paint(object):
         self.tool = "point"
         self.activate_button(self.point_button)
             
-            
+    # Start function triggered by mouse left button click that checks the current tool setting and triggers their respective functions
     def start(self, event):
         if self.tool == "pen":
             self.size = self.choose_size_button.get()
@@ -170,7 +205,10 @@ class Paint(object):
             self.polygon_point(event)
         elif self.tool == 'point':
             self.point(event)
+            self.index = len(self.stack) - 1
     
+    # Motion function triggered by holding mouse left button that checks the current tool setting and triggers their respective functions
+    # Only available to certain tools that use the motion effect
     def motion(self,event):
         if self.tool == "pen":
             self.pen_draw(event)
@@ -181,23 +219,30 @@ class Paint(object):
         elif self.tool == 'rectangle':
             self.rectangle_motion(event)
     
+    # End function triggered by releasing mouse left button that checks the current tool setting and triggers their respective functions
     def end(self,event):
         if self.tool == 'pen':
             self.old_x, self.old_y = None, None
             self.stack.append(self.Pen_objects)
             self.Pen_objects = []
+            self.index = len(self.stack) - 1
         elif self.tool == 'line':
             self.line_end(event)
+            self.index = len(self.stack) - 1
         elif self.tool == 'circle':
             self.circle_end(event)
+            self.index = len(self.stack) - 1
         elif self.tool == 'rectangle':
             self.rectangle_end(event)
+            self.index = len(self.stack) - 1
 
+    # Only available to Polygon function to trigger the creation of polygon
     def mouse_right(self, event):
         if self.tool == "polygon":
             self.polygon_finish(event)
+            self.index = len(self.stack) - 1
 
-
+    # Motion function for pen tool
     def pen_draw(self, event):
         if self.old_x and self.old_y:
             self.Pen_objects.append(
@@ -210,6 +255,7 @@ class Paint(object):
         self.old_x = event.x
         self.old_y = event.y
 
+    # Line tool start, motion and end effect
     def line_start(self,event):
         self.size = self.choose_size_button.get()
         self.line_start_x=event.x
@@ -226,6 +272,7 @@ class Paint(object):
         self.stack.append(x)
         return event.x, event.y
 
+    # Circle tool start, motion and end effect
     def circle_start(self,event):
         self.circle_start_x = event.x
         self.circle_start_y = event.y
@@ -240,6 +287,7 @@ class Paint(object):
         self.Circle_objects.append(x)
         self.stack.append(x)
     
+    # Rectangle tool start, motion and end effect
     def rectangle_start(self,event):
         self.rectangle_start_x = event.x
         self.rectangle_start_y = event.y
@@ -254,6 +302,7 @@ class Paint(object):
         self.Rectangle_objects.append(x)
         self.stack.append(x)
     
+    # Polygon points used to define the polygon corners
     def polygon_point(self, event):
         self.polygon_points.append(event.x)
         self.polygon_points.append(event.y)
@@ -262,6 +311,7 @@ class Paint(object):
             self.c.create_oval(event.x, event.y, event.x + self.size, event.y + self.size, 
                                fill=self.paint_color, outline=self.outline_color)
             )
+    # Polygon draw function to create polygon from Polygon points
     def polygon_finish(self, event):
         for point in self.polygon_temp:
             self.c.delete(point)
@@ -270,6 +320,7 @@ class Paint(object):
         self.Polygon_objects.append(x)
         self.stack.append(x)
     
+    # Point tool to draw small circles that represent points
     def point(self,event):
         self.size = self.choose_size_button.get()
         x = self.c.create_oval(event.x, event.y, event.x + self.size, event.y + self.size, 
@@ -277,54 +328,123 @@ class Paint(object):
         self.Point_objects.append(x)
         self.stack.append(x)
 
-    
+    # Image import function
     def import_img(self):
+        # The user is asked to provide location for the import file
         img_dir = str(askopenfilename(
             initialdir = self.project_path,
             filetypes=(("Image file", "*.jpeg *.jpg *.png *.gif"), 
                        ("All files", "*.*"))
         ))
+        # If the user selected some file
         if img_dir:
+            # The user is asked for the resize factor, that is used to resize the image
             resize_factor = askfloat(title="Resize factor", 
                 prompt="Type the image resize factor:\n0 > factor < 1.0 (shrink)\nfactor = 1 (origin)\nfactor > 1.0 (enlarge)")
             
+            # The program tries to open the file selected by the user
+            # If the file is not a file that can be opened as an image or cannot be converted using PIL library,
+            # the program raises an exception and shows error dialog window
             try:
                 img_temp = Img.open(img_dir)
                 width, height = img_temp.size
+                # The original image is resized using the resize factor
                 img_temp = img_temp.resize((int(width * resize_factor), int(height * resize_factor)), Img.ANTIALIAS)
-                img_temp.convert("RGB").save("img_temp.ppm", format="ppm")
+                # The image in any supported format (png, jpg, gif, ...) is converted into .ppm format that is supported by Tkinter
+                img_temp.convert("RGB").save("temp/img_temp.ppm", format="ppm")
                 
-                self.img = PhotoImage(file="img_temp.ppm")
-                x = self.c.create_image(self.DEFAULT_CANVAS_WIDTH // 2, self.DEFAULT_CANVAS_HEIGHT // 2, image=self.img)
+                # Image_objects list is used to store PhotoImage objects, that represent images in memory, that are used later in
+                # undo, redo functions
+                self.Image_objects.append(PhotoImage(file="temp/img_temp.ppm"))
+                # The image is drawn on the canvas in the middle
+                x = self.c.create_image(self.default_canvas_width // 2, self.default_canvas_height // 2, 
+                                        image=self.Image_objects[self.img_counter])
+                self.img_counter += 1
                 self.stack.append(x)
+                self.index = len(self.stack) - 1
             except:
                 showerror(title="Import error", message="Wrong image format!")
-        
+    
+    # Undo function triggered by key bind and menu button click
     def undo(self, event=None):
-        if self.stack:
-            x = self.stack.pop()
+        # The function checks if the current index is greater or equal to 0 (index of ids defined in self.stack)
+        if self.index >= 0:
+            x = self.stack[self.index]
+            # if type(x) is list:
+            #     for item in x:
+            #         if self.c.itemcget(item, "state") == "hidden":
+            #             self.c.itemconfigure(item, state="normal")
+            #         else:
+            #             self.c.itemconfigure(item, state="hidden")
+            # else:
+            #     if self.c.itemcget(x, "state") == "hidden":
+            #         self.c.itemconfigure(x, state="normal")
+            #     else:
+            #         self.c.itemconfigure(x, state="hidden")
+            
+            # If the current item in self.stack is a list (pen objects), then it hides all it's items, if not, then it hides the item
+            # specified by id in self.stack
             if type(x) is list:
                 for item in x:
-                    self.c.delete(item)
+                    self.c.itemconfigure(item, state="hidden")
             else:
-                self.c.delete(x)
+                self.c.itemconfigure(x, state="hidden")
+            # the self.index is lowered by 1 to indicate the current working item id in self.stack
+            self.index -= 1
     
+    # Redo function triggered by key bind and menu button click similar to Undo function
+    def redo(self, event=None):
+        # The function checks if the current index is lower than the last index in self.stack
+        if self.index < (len(self.stack) - 1):
+            self.index += 1
+            x = self.stack[self.index]
+            # if type(x) is list:
+            #     for item in x:
+            #         if self.c.itemcget(item, "state") == "hidden":
+            #             self.c.itemconfigure(item, state="normal")
+            #         else:
+            #             self.c.itemconfigure(item, state="hidden")
+            # else:
+            #     if self.c.itemcget(x, "state") == "hidden":
+            #         self.c.itemconfigure(x, state="normal")
+            #     else:
+            #         self.c.itemconfigure(x, state="hidden")
+            if type(x) is list:
+                for item in x:
+                    self.c.itemconfigure(item, state="normal")
+            else:
+                self.c.itemconfigure(x, state="normal")
+                    
+    # Function starts a new file, resets canvas and resets all settings
+    def new_file(self):
+        self.c.delete("all")
+        self.setup()
+    
+    # Supporting saving function used in save() and save_as()
     def saving(self):
+        # If the chosen export file format is Postscript (.ps), than it uses Tkinter built-in function
         if self.file_dir.endswith(".ps"):
                 self.c.postscript(file = self.file_dir, colormode = 'color')
+        # If the chosen export file format is PNG, than it creates a screenshot of the screen and crops the image using
+        # coordinates of the canvas upper left and down right corners
         elif self.file_dir.endswith(".png"):
-            x2 = self.root.winfo_rootx() + self.c.winfo_x() + 2
+            # winfo_rootx() and winfo_rooty() is root's upper left corner coords + winfo_x() and winfo_y() is 
+            # canvase's upper left corner coords relative to root (0)
+            x2 = self.root.winfo_rootx() + self.c.winfo_x() + 2 # +2 is needed to compensate for root's window padding
             y2 = self.root.winfo_rooty() + self.c.winfo_y() + 2
-            x1 = x2 + self.c.winfo_width() - 4
+            x1 = x2 + self.c.winfo_width() - 4 # -4 is needed to compensate for winfo_width/height() return value being incremented by 4
             y1 = y2 + self.c.winfo_height() - 4
             ImageGrab.grab().crop((x2,y2,x1,y1)).save(self.file_dir)
     
-    def save(self, event):
+    # Save function that triggers saving() if the export file_dir is already chosen, if not, triggers save_as()
+    def save(self, event=None):
         if self.file_dir:
             self.saving()
         else:
-            self.save_as(event)
-        
+            self.save_as()
+    
+    # Function triggers the standard save dialog, asks the location of export file and sets the root window's title
+    # to export file name
     def save_as(self, event=None):
         self.file_dir = str(asksaveasfilename(
             initialdir = self.project_path,
