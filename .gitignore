@@ -1,4 +1,4 @@
 .vscode
 exports
 __pycache__
-temp
+img_temp.ppm

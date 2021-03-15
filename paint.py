@@ -3,7 +3,6 @@ from tkinter.colorchooser import askcolor
 from tkinter.filedialog import asksaveasfilename, askopenfilename
 from tkinter.simpledialog import askfloat
 from tkinter.messagebox import showinfo, showerror, askyesnocancel
-from tkinter.font import Font
 import pathlib
 from PIL import Image as Img
 import pyscreenshot as ImageGrab
@@ -26,7 +25,7 @@ class Paint(object):
 
     # Default values for Paint app that can be changed
     DEFAULT_PEN_SIZE = 5
-    DEFAULT_COLOR = 'black'
+    DEFAULT_COLOR = "black"
     DEFAULT_CANVAS_WIDTH = 600
     DEFAULT_CANVAS_HEIGHT = 600
     
@@ -60,45 +59,42 @@ class Paint(object):
         self.root.config(menu=self.menubar)
 
         # 1. row in Tk grid layout
-        self.eraser_button = Button(self.root, text='Eraser', command=self.use_eraser)
+        self.eraser_button = Button(self.root, text="Eraser", command=self.use_eraser)
         self.eraser_button.grid(row=0, column=0)
         
-        self.reset_button = Button(self.root, text='Reset', command=self.clear)
-        self.reset_button.grid(row=0, column=1)
-        
-        self.color_button = Button(self.root, text='Color', command=self.choose_color)
-        self.color_button.grid(row=0, column=2)
+        self.color_button = Button(self.root, text="Color", command=self.choose_color)
+        self.color_button.grid(row=0, column=1)
         
         self.current_color = Label(self.root, text="", padx=20, pady=10, bg=self.DEFAULT_COLOR)
-        self.current_color.grid(row=0, column=3)
+        self.current_color.grid(row=0, column=2)
 
         self.choose_size_button = Scale(self.root, from_=1, to=10, orient=HORIZONTAL, label="Size")
-        self.choose_size_button.grid(row=0, column=4)
+        self.choose_size_button.grid(row=0, column=3)
         
         # 2. row in Tk grid layout
-        self.pen_button = Button(self.root, text='Pen', command=self.use_pen)
+        self.pen_button = Button(self.root, text="Pen", command=self.use_pen)
         self.pen_button.grid(row=1, column=0)
         
-        self.line_button = Button(self.root, text='Line', command=self.use_line)
+        self.line_button = Button(self.root, text="Line", command=self.use_line)
         self.line_button.grid(row=1,column=1)
 
-        self.circle_button = Button(self.root, text='Circle', command=self.use_circle)
+        self.circle_button = Button(self.root, text="Circle", command=self.use_circle)
         self.circle_button.grid(row=1,column=2)
         
-        self.rectangle_button = Button(self.root, text='Rectangle', command=self.use_rectangle)
+        self.rectangle_button = Button(self.root, text="Rectangle", command=self.use_rectangle)
         self.rectangle_button.grid(row=1,column=3)
         
-        self.polygon_button = Button(self.root, text='Polygon', command=self.use_polygon)
+        self.polygon_button = Button(self.root, text="Polygon", command=self.use_polygon)
         self.polygon_button.grid(row=1,column=4)
 
-        self.point_button = Button(self.root, text='Point', command=self.use_point)
+        self.point_button = Button(self.root, text="Point", command=self.use_point)
         self.point_button.grid(row=1,column=5)
         
-        self.text_button = Button(self.root, text='Text', command=self.use_text)
+        self.text_button = Button(self.root, text="Text", command=self.use_text)
         self.text_button.grid(row=1,column=6)
 
         # Canvas implementation with default dimensions
-        self.c = Canvas(self.root, bg='white', width=self.default_canvas_width, height=self.default_canvas_height)
+        self.c = Canvas(self.root, bg="white", width=self.default_canvas_width, height=self.default_canvas_height)
         self.c.grid(row=2, columnspan=7)
 
         # Tk GUI setup and mainloop to run the Tcl window in a loop
@@ -121,7 +117,7 @@ class Paint(object):
         self.eraser_on = False
         self.active_button = self.pen_button
         self.use_pen()
-        # self.changes_index = 0
+        self.text_created = False
         self.index = 0
         self.img_counter = 0
         self.file_dir = ""
@@ -136,7 +132,6 @@ class Paint(object):
         self.Image_objects = []
         self.polygon_points = []
         self.polygon_temp = []
-        # self.changes = []
         self.stack = []
         
         # Basic key/mouse binds
@@ -155,7 +150,7 @@ class Paint(object):
         some_button.config(relief=SUNKEN)
         self.active_button = some_button
         self.eraser_on = eraser_mode
-        self.paint_color = self.outline_color = 'white' if self.eraser_on else self.paint_color
+        self.paint_color = self.outline_color = "white" if self.eraser_on else self.paint_color
 
     # Sets fill color option to white
     def use_eraser(self):
@@ -167,12 +162,6 @@ class Paint(object):
         self.eraser_on = False
         self.paint_color = self.outline_color = askcolor(color=self.paint_color)[1]
         self.current_color.config(bg=self.paint_color)
-
-    # Resets the canvas by drawing a white rectangle over it
-    def clear(self):
-        x = self.c.create_rectangle(0, 0, self.default_canvas_width, self.default_canvas_height, fill="white", outline="white")
-        self.stack.append(x)
-        self.index = len(self.stack) - 1
     
 # Functions triggered by their respective buttons
     def use_pen(self):
@@ -196,7 +185,12 @@ class Paint(object):
         self.tool = "point"
         self.activate_button(self.point_button)
     def use_text(self):
+        showinfo(title="Text tutorial", 
+                 message="""Left-click and drag to create text window and then right-click on canvas to lose focus.
+To create another text window, click the button again. 
+Warning: Text window is always on top of canvas!""")
         self.tool = "text"
+        self.text_created = False
         self.activate_button(self.text_button)
             
     # Start function triggered by mouse left button click that checks the current tool setting and triggers their respective functions
@@ -215,7 +209,8 @@ class Paint(object):
             self.point(event)
             self.index = len(self.stack) - 1
         elif self.tool == "text":
-            self.text_start(event)
+            if self.text_created == False:
+                self.text_start(event)
     
     # Motion function triggered by holding mouse left button that checks the current tool setting and triggers their respective functions
     # Only available to certain tools that use the motion effect
@@ -229,7 +224,8 @@ class Paint(object):
         elif self.tool == 'rectangle':
             self.rectangle_motion(event)
         elif self.tool == 'text':
-            self.text_motion(event)
+            if self.text_created == False:
+                self.text_motion(event)
     
     # End function triggered by releasing mouse left button that checks the current tool setting and triggers their respective functions
     def end(self,event):
@@ -248,19 +244,23 @@ class Paint(object):
             self.rectangle_end(event)
             self.index = len(self.stack) - 1
         elif self.tool == 'text':
-            self.text_end(event)
+            # Button-1 release text event first checks if the text was already created, if not then sets the text_created to True,
+            # so another Button-1 click event wouldn't trigger the current Text window redraw
+            # To create another window object, the user is required to click the Text button again to set text_created to False
+            if self.text_created == False:
+                self.text_end(event)
+                self.text_created = True
+                self.text_button.config(relief=RAISED)
+                self.index = len(self.stack) - 1
 
-    # Only available to Polygon function to trigger the creation of polygon
     def mouse_right(self, event):
+        # Available to Polygon function to trigger the creation of polygon
         if self.tool == "polygon":
             self.polygon_finish(event)
             self.index = len(self.stack) - 1
-        if self.tool == "text":
-            if not self.text_created:
-                self.text_counter = False
-                self.text_finish(event)
-                self.index = len(self.stack) - 1
-
+        # If the Text widget/window has the active focus (text pointer), then any mouse_right event will disable it
+        self.root.focus_set()
+                
     # Motion function for pen tool
     def pen_draw(self, event):
         if self.old_x and self.old_y:
@@ -280,11 +280,11 @@ class Paint(object):
         self.line_start_x=event.x
         self.line_start_y=event.y
     def line_motion(self,event):
-        self.c.delete('temp_line_objects')
+        self.c.delete("temp_line_objects")
         self.c.create_line(self.line_start_x, self.line_start_y, event.x, event.y, 
-                           width=self.size, fill=self.paint_color, smooth=1, tags='temp_line_objects')
+                           width=self.size, fill=self.paint_color, smooth=1, tags="temp_line_objects")
     def line_end(self, event):
-        self.c.delete('temp_line_objects')
+        self.c.delete("temp_line_objects")
         x = self.c.create_line(self.line_start_x, self.line_start_y, event.x, event.y, 
                                width=self.size, fill=self.paint_color, smooth=1)
         self.Line_objects.append(x)
@@ -296,11 +296,11 @@ class Paint(object):
         self.circle_start_x = event.x
         self.circle_start_y = event.y
     def circle_motion(self,event):
-        self.c.delete('temp_circle_objects')
+        self.c.delete("temp_circle_objects")
         self.c.create_oval(self.circle_start_x, self.circle_start_y, event.x, event.y, 
-                           fill=self.paint_color, outline=self.outline_color, tags='temp_circle_objects')
+                           fill=self.paint_color, outline=self.outline_color, tags="temp_circle_objects")
     def circle_end(self, event):
-        self.c.delete('temp_circle_objects')
+        self.c.delete("temp_circle_objects")
         x = self.c.create_oval(self.circle_start_x, self.circle_start_y, event.x, event.y, 
                                fill=self.paint_color, outline=self.outline_color)
         self.Circle_objects.append(x)
@@ -311,11 +311,11 @@ class Paint(object):
         self.rectangle_start_x = event.x
         self.rectangle_start_y = event.y
     def rectangle_motion(self,event):
-        self.c.delete('temp_rectangle_objects')
+        self.c.delete("temp_rectangle_objects")
         self.c.create_rectangle(self.rectangle_start_x, self.rectangle_start_y, event.x, event.y, 
-                           fill=self.paint_color, outline=self.outline_color, tags='temp_rectangle_objects')
+                           fill=self.paint_color, outline=self.outline_color, tags="temp_rectangle_objects")
     def rectangle_end(self, event):
-        self.c.delete('temp_rectangle_objects')
+        self.c.delete("temp_rectangle_objects")
         x = self.c.create_rectangle(self.rectangle_start_x, self.rectangle_start_y, event.x, event.y, 
                                fill=self.paint_color, outline=self.outline_color)
         self.Rectangle_objects.append(x)
@@ -349,35 +349,39 @@ class Paint(object):
         self.stack.append(x)
         
     def text_start(self, event):
-        self.text_created = False
         self.text_start_x = event.x
         self.text_start_y = event.y
         self.text_rel_x = 0
         self.text_rel_y = 0
-        # print(Font(font="Courier").metrics()) #-> Arial, size: 12
     def text_motion(self, event):
+        # Defines the relative (x, y) positions based on the starting cursor position (text_start_x, text_start_y)
         self.text_rel_x = event.x - self.text_start_x
         self.text_rel_y = event.y - self.text_start_y
+        # These constants represent font metrics of Courier monospace font family of size 12: Character width and height
         char_width = 7.2006
         char_height = 22
+        # Checks if the relative (x, y) is within left lower quadrant (the user can only draw text widget within this quadrant)
         if self.text_rel_x > 0 and self.text_rel_y > 0:
+            # Calculates the amount of characters based on char_width that can fit in the current cursor defined space
             char_count_row = int(self.text_rel_x // char_width)
+            # Calculates the amount of lines based on char_height that can fit in the current cursor defined space
             count_lines = int(self.text_rel_y // char_height)
-            
-            self.c.delete('temp_text_objects')
+            self.c.delete("temp_text_objects")
             self.text_widget = Text(self.c, width=char_count_row, height=count_lines, bd=1, 
                                     fg=self.paint_color, font="Courier", highlightthickness=0,
                                     wrap=WORD)
-            self.c.create_window(self.text_start_x, self.text_start_y, anchor=NW, window=self.text_widget, tags='temp_text_objects')
+            # Creates canvas window that can hold the Text widget using the starting positions -> The window envelops the whole Text
+            # widget inheriting its dimensions
+            self.c.create_window(self.text_start_x, self.text_start_y, anchor=NW, window=self.text_widget, tags="temp_text_objects")
     def text_end(self, event):
-        self.c.delete('temp_text_objects')
+        self.c.delete("temp_text_objects")
         self.text_window = self.c.create_window(self.text_start_x, self.text_start_y, anchor=NW, window=self.text_widget)
-    def text_finish(self, event):
-        self.text_widget.config(state="disabled")
         self.stack.append(self.text_window)
 
     # Image import function
     def import_img(self):
+        # The function triggers a new file prior to importing/opening a new image
+        self.new_file()
         # The user is asked to provide location for the import file
         img_dir = str(askopenfilename(
             initialdir = self.project_path,
@@ -399,11 +403,11 @@ class Paint(object):
                 # The original image is resized using the resize factor
                 img_temp = img_temp.resize((int(width * resize_factor), int(height * resize_factor)), Img.ANTIALIAS)
                 # The image in any supported format (png, jpg, gif, ...) is converted into .ppm format that is supported by Tkinter
-                img_temp.convert("RGB").save("temp/img_temp.ppm", format="ppm")
+                img_temp.convert("RGB").save("img_temp.ppm", format="ppm")
                 
                 # Image_objects list is used to store PhotoImage objects, that represent images in memory, that are used later in
                 # undo, redo functions
-                self.Image_objects.append(PhotoImage(file="temp/img_temp.ppm"))
+                self.Image_objects.append(PhotoImage(file="img_temp.ppm"))
                 # The image is drawn on the canvas in the middle
                 x = self.c.create_image(self.default_canvas_width // 2, self.default_canvas_height // 2, 
                                         image=self.Image_objects[self.img_counter])
@@ -416,20 +420,8 @@ class Paint(object):
     # Undo function triggered by key bind and menu button click
     def undo(self, event=None):
         # The function checks if the current index is greater or equal to 0 (index of ids defined in self.stack)
-        if self.index >= 0:
+        if self.index >= 0 and self.stack:
             x = self.stack[self.index]
-            # if type(x) is list:
-            #     for item in x:
-            #         if self.c.itemcget(item, "state") == "hidden":
-            #             self.c.itemconfigure(item, state="normal")
-            #         else:
-            #             self.c.itemconfigure(item, state="hidden")
-            # else:
-            #     if self.c.itemcget(x, "state") == "hidden":
-            #         self.c.itemconfigure(x, state="normal")
-            #     else:
-            #         self.c.itemconfigure(x, state="hidden")
-            
             # If the current item in self.stack is a list (pen objects), then it hides all it's items, if not, then it hides the item
             # specified by id in self.stack
             if type(x) is list:
@@ -443,20 +435,9 @@ class Paint(object):
     # Redo function triggered by key bind and menu button click similar to Undo function
     def redo(self, event=None):
         # The function checks if the current index is lower than the last index in self.stack
-        if self.index < (len(self.stack) - 1):
+        if self.index < (len(self.stack) - 1) and self.stack:
             self.index += 1
             x = self.stack[self.index]
-            # if type(x) is list:
-            #     for item in x:
-            #         if self.c.itemcget(item, "state") == "hidden":
-            #             self.c.itemconfigure(item, state="normal")
-            #         else:
-            #             self.c.itemconfigure(item, state="hidden")
-            # else:
-            #     if self.c.itemcget(x, "state") == "hidden":
-            #         self.c.itemconfigure(x, state="normal")
-            #     else:
-            #         self.c.itemconfigure(x, state="hidden")
             if type(x) is list:
                 for item in x:
                     self.c.itemconfigure(item, state="normal")
@@ -510,8 +491,7 @@ class Paint(object):
         ))
         
         start_index = self.file_dir.rfind("/") + 1
-        end_index = self.file_dir.rfind(".")
-        file_name = self.file_dir[start_index:end_index]
+        file_name = self.file_dir[start_index:]
         if file_name: 
             self.root.title(file_name + " - Tkinter Paint")
         
