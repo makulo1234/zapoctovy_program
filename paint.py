@@ -2,14 +2,15 @@ from tkinter import *
 from tkinter.colorchooser import askcolor
 from tkinter.filedialog import asksaveasfilename, askopenfilename
 from tkinter.simpledialog import askfloat
-from tkinter.messagebox import showinfo, showerror
+from tkinter.messagebox import showinfo, showerror, askyesnocancel
+from tkinter.font import Font
 import pathlib
 from PIL import Image as Img
 import pyscreenshot as ImageGrab
 
 class Paint(object):
     """
-    Paint App driven by Tkinter for drawing lines, circles, points with basic settings adjustments.
+    Paint App driven by Tkinter for drawing lines, ellipses, rectangles, polygons and points with basic settings adjustments.
     
     Attributes
     ----------
@@ -92,10 +93,13 @@ class Paint(object):
 
         self.point_button = Button(self.root, text='Point', command=self.use_point)
         self.point_button.grid(row=1,column=5)
+        
+        self.text_button = Button(self.root, text='Text', command=self.use_text)
+        self.text_button.grid(row=1,column=6)
 
         # Canvas implementation with default dimensions
         self.c = Canvas(self.root, bg='white', width=self.default_canvas_width, height=self.default_canvas_height)
-        self.c.grid(row=2, columnspan=6)
+        self.c.grid(row=2, columnspan=7)
 
         # Tk GUI setup and mainloop to run the Tcl window in a loop
         self.setup()
@@ -107,12 +111,13 @@ class Paint(object):
         self.root.title("New file - Tkinter Paint")
         self.project_path = pathlib.Path(__file__).parent.absolute()
         
-        # Main variables and counters
+        # Main variables, counters and default settings
         self.old_x = None
         self.old_y = None
         self.size = self.default_pen_size
         self.choose_size_button.set(self.default_pen_size)
         self.paint_color = self.default_color
+        self.current_color.config(bg=self.paint_color)
         self.eraser_on = False
         self.active_button = self.pen_button
         self.use_pen()
@@ -190,6 +195,9 @@ class Paint(object):
     def use_point(self):
         self.tool = "point"
         self.activate_button(self.point_button)
+    def use_text(self):
+        self.tool = "text"
+        self.activate_button(self.text_button)
             
     # Start function triggered by mouse left button click that checks the current tool setting and triggers their respective functions
     def start(self, event):
@@ -206,6 +214,8 @@ class Paint(object):
         elif self.tool == 'point':
             self.point(event)
             self.index = len(self.stack) - 1
+        elif self.tool == "text":
+            self.text_start(event)
     
     # Motion function triggered by holding mouse left button that checks the current tool setting and triggers their respective functions
     # Only available to certain tools that use the motion effect
@@ -218,6 +228,8 @@ class Paint(object):
             self.circle_motion(event)
         elif self.tool == 'rectangle':
             self.rectangle_motion(event)
+        elif self.tool == 'text':
+            self.text_motion(event)
     
     # End function triggered by releasing mouse left button that checks the current tool setting and triggers their respective functions
     def end(self,event):
@@ -235,12 +247,19 @@ class Paint(object):
         elif self.tool == 'rectangle':
             self.rectangle_end(event)
             self.index = len(self.stack) - 1
+        elif self.tool == 'text':
+            self.text_end(event)
 
     # Only available to Polygon function to trigger the creation of polygon
     def mouse_right(self, event):
         if self.tool == "polygon":
             self.polygon_finish(event)
             self.index = len(self.stack) - 1
+        if self.tool == "text":
+            if not self.text_created:
+                self.text_counter = False
+                self.text_finish(event)
+                self.index = len(self.stack) - 1
 
     # Motion function for pen tool
     def pen_draw(self, event):
@@ -315,18 +334,47 @@ class Paint(object):
     def polygon_finish(self, event):
         for point in self.polygon_temp:
             self.c.delete(point)
-        x = self.c.create_polygon(*self.polygon_points, fill=self.paint_color, outline=self.outline_color)
-        self.polygon_points = []
-        self.Polygon_objects.append(x)
-        self.stack.append(x)
+        if self.polygon_points:
+            x = self.c.create_polygon(*self.polygon_points, fill=self.paint_color, outline=self.outline_color)
+            self.polygon_points = []
+            self.Polygon_objects.append(x)
+            self.stack.append(x)
     
     # Point tool to draw small circles that represent points
-    def point(self,event):
+    def point(self, event):
         self.size = self.choose_size_button.get()
         x = self.c.create_oval(event.x, event.y, event.x + self.size, event.y + self.size, 
                                fill=self.paint_color, outline=self.outline_color)
         self.Point_objects.append(x)
         self.stack.append(x)
+        
+    def text_start(self, event):
+        self.text_created = False
+        self.text_start_x = event.x
+        self.text_start_y = event.y
+        self.text_rel_x = 0
+        self.text_rel_y = 0
+        # print(Font(font="Courier").metrics()) #-> Arial, size: 12
+    def text_motion(self, event):
+        self.text_rel_x = event.x - self.text_start_x
+        self.text_rel_y = event.y - self.text_start_y
+        char_width = 7.2006
+        char_height = 22
+        if self.text_rel_x > 0 and self.text_rel_y > 0:
+            char_count_row = int(self.text_rel_x // char_width)
+            count_lines = int(self.text_rel_y // char_height)
+            
+            self.c.delete('temp_text_objects')
+            self.text_widget = Text(self.c, width=char_count_row, height=count_lines, bd=1, 
+                                    fg=self.paint_color, font="Courier", highlightthickness=0,
+                                    wrap=WORD)
+            self.c.create_window(self.text_start_x, self.text_start_y, anchor=NW, window=self.text_widget, tags='temp_text_objects')
+    def text_end(self, event):
+        self.c.delete('temp_text_objects')
+        self.text_window = self.c.create_window(self.text_start_x, self.text_start_y, anchor=NW, window=self.text_widget)
+    def text_finish(self, event):
+        self.text_widget.config(state="disabled")
+        self.stack.append(self.text_window)
 
     # Image import function
     def import_img(self):
@@ -415,10 +463,18 @@ class Paint(object):
             else:
                 self.c.itemconfigure(x, state="normal")
                     
-    # Function starts a new file, resets canvas and resets all settings
+    # Function starts a new file, sets currently active button to RAISED, resets canvas and resets all settings
     def new_file(self):
-        self.c.delete("all")
-        self.setup()
+        answer = askyesnocancel("Save file?", "Do you want to save the file before proceeding?")
+        if answer == True:
+            self.save()
+            self.active_button.config(relief=RAISED)
+            self.c.delete("all")
+            self.setup()
+        elif answer == False:
+            self.active_button.config(relief=RAISED)
+            self.c.delete("all")
+            self.setup()
     
     # Supporting saving function used in save() and save_as()
     def saving(self):
