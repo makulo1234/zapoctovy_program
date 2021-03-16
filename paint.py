@@ -383,39 +383,40 @@ Warning: Text window is always on top of canvas!""")
         # The function triggers a new file prior to importing/opening a new image
         self.new_file()
         # The user is asked to provide location for the import file
-        img_dir = str(askopenfilename(
-            initialdir = self.project_path,
-            filetypes=(("Image file", "*.jpeg *.jpg *.png *.gif"), 
-                       ("All files", "*.*"))
-        ))
-        # If the user selected some file
-        if img_dir:
-            # The user is asked for the resize factor, that is used to resize the image
-            resize_factor = askfloat(title="Resize factor", 
-                prompt="Type the image resize factor:\n0 > factor < 1.0 (shrink)\nfactor = 1 (origin)\nfactor > 1.0 (enlarge)")
-            
-            # The program tries to open the file selected by the user
-            # If the file is not a file that can be opened as an image or cannot be converted using PIL library,
-            # the program raises an exception and shows error dialog window
-            try:
-                img_temp = Img.open(img_dir)
-                width, height = img_temp.size
-                # The original image is resized using the resize factor
-                img_temp = img_temp.resize((int(width * resize_factor), int(height * resize_factor)), Img.ANTIALIAS)
-                # The image in any supported format (png, jpg, gif, ...) is converted into .ppm format that is supported by Tkinter
-                img_temp.convert("RGB").save("img_temp.ppm", format="ppm")
+        if self.answer == True or self.answer == False:
+            img_dir = str(askopenfilename(
+                initialdir = self.project_path,
+                filetypes=(("Image file", "*.jpeg *.jpg *.png *.gif"), 
+                        ("All files", "*.*"))
+            ))
+            # If the user selected some file
+            if img_dir:
+                # The user is asked for the resize factor, that is used to resize the image
+                resize_factor = askfloat(title="Resize factor", 
+                    prompt="Type the image resize factor:\n0 > factor < 1.0 (shrink)\nfactor = 1 (origin)\nfactor > 1.0 (enlarge)")
                 
-                # Image_objects list is used to store PhotoImage objects, that represent images in memory, that are used later in
-                # undo, redo functions
-                self.Image_objects.append(PhotoImage(file="img_temp.ppm"))
-                # The image is drawn on the canvas in the middle
-                x = self.c.create_image(self.default_canvas_width // 2, self.default_canvas_height // 2, 
-                                        image=self.Image_objects[self.img_counter])
-                self.img_counter += 1
-                self.stack.append(x)
-                self.index = len(self.stack) - 1
-            except:
-                showerror(title="Import error", message="Wrong image format!")
+                # The program tries to open the file selected by the user
+                # If the file is not a file that can be opened as an image or cannot be converted using PIL library,
+                # the program raises an exception and shows error dialog window
+                try:
+                    img_temp = Img.open(img_dir)
+                    width, height = img_temp.size
+                    # The original image is resized using the resize factor
+                    img_temp = img_temp.resize((int(width * resize_factor), int(height * resize_factor)), Img.ANTIALIAS)
+                    # The image in any supported format (png, jpg, gif, ...) is converted into .ppm format that is supported by Tkinter
+                    img_temp.convert("RGB").save("img_temp.ppm", format="ppm")
+                    
+                    # Image_objects list is used to store PhotoImage objects, that represent images in memory, that are used later in
+                    # undo, redo functions
+                    self.Image_objects.append(PhotoImage(file="img_temp.ppm"))
+                    # The image is drawn on the canvas in the middle
+                    x = self.c.create_image(self.default_canvas_width // 2, self.default_canvas_height // 2, 
+                                            image=self.Image_objects[self.img_counter])
+                    self.img_counter += 1
+                    self.stack.append(x)
+                    self.index = len(self.stack) - 1
+                except:
+                    showerror(title="Import error", message="Wrong image format!")
     
     # Undo function triggered by key bind and menu button click
     def undo(self, event=None):
@@ -446,13 +447,13 @@ Warning: Text window is always on top of canvas!""")
                     
     # Function starts a new file, sets currently active button to RAISED, resets canvas and resets all settings
     def new_file(self):
-        answer = askyesnocancel("Save file?", "Do you want to save the file before proceeding?")
-        if answer == True:
+        self.answer = askyesnocancel("Save file?", "Do you want to save the file before proceeding?")
+        if self.answer == True:
             self.save()
             self.active_button.config(relief=RAISED)
             self.c.delete("all")
             self.setup()
-        elif answer == False:
+        elif self.answer == False:
             self.active_button.config(relief=RAISED)
             self.c.delete("all")
             self.setup()
